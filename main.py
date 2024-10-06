@@ -18,7 +18,7 @@ def get_db():
         db.close()
 
 
-# CRUD операции для пользователей
+# Добавление пользователя в БД.
 @app.post("/users/", response_model=schemas.UserOut)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = models.User(email=user.email)
@@ -31,6 +31,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
+# Получение данных о пользователе из БД по id.
 @app.get("/users/{user_id}", response_model=schemas.UserOut)
 def get_user(user_id: int, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -39,7 +40,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return db_user
 
 
-# CRUD операции для товаров
+# Добавление товара в БД.
 @app.post("/products/", response_model=schemas.ProductOut)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     db_product = models.Product(**product.dict())
@@ -49,6 +50,7 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     return db_product
 
 
+# Получение данных о товарах из БД по id.
 @app.get("/products/{product_id}", response_model=schemas.ProductOut)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
@@ -57,7 +59,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     return db_product
 
 
-# CRUD операции для заказов
+# Добавление заказа в БД.
 @app.post("/orders/", response_model=schemas.OrderOut)
 def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
     db_order = models.Order(**order.dict())
@@ -67,6 +69,7 @@ def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
     return db_order
 
 
+# Получение данных о заказе из БД по id.
 @app.get("/orders/{order_id}", response_model=schemas.OrderOut)
 def get_order(order_id: int, db: Session = Depends(get_db)):
     db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
