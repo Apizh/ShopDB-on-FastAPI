@@ -1,3 +1,4 @@
+from attr.validators import max_len
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,8 +11,8 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
-    first_name = Column(String, nullable=False)
-    last_name = Column(String, nullable=False)
+    first_name = Column(String, max_len=50, nullable=False)
+    last_name = Column(String, max_len=100, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
 
@@ -23,8 +24,8 @@ class Product(Base):
     __tablename__ = 'products'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    description = Column(String)
+    name = Column(String, max_len=100, nullable=False)
+    description = Column(String, max_len=300)
     price = Column(Float, nullable=False)
 
     orders = relationship("Order", back_populates="product")
