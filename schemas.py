@@ -18,7 +18,7 @@ class UserOut(UserBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Модель Pydantic для товаров
@@ -36,7 +36,7 @@ class ProductOut(ProductBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Модель Pydantic для заказов
@@ -55,4 +55,4 @@ class OrderOut(OrderBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
