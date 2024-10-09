@@ -11,8 +11,8 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
-    first_name = Column(String, max_len=50, nullable=False)
-    last_name = Column(String, max_len=100, nullable=False)
+    first_name = Column(String(length=50), nullable=False)
+    last_name = Column(String(length=100), nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
 
@@ -24,8 +24,8 @@ class Product(Base):
     __tablename__ = 'products'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, max_len=100, nullable=False)
-    description = Column(String, max_len=300)
+    name = Column(String(length=100), nullable=False)
+    description = Column(String(length=300))
     price = Column(Float, nullable=False)
 
     orders = relationship("Order", back_populates="product")
