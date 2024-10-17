@@ -1,4 +1,3 @@
-from attr.validators import max_len
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -14,7 +13,7 @@ class User(Base):
     first_name = Column(String(length=50), nullable=False)
     last_name = Column(String(length=100), nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
+    password = Column(String(length=50), nullable=False)
 
     orders = relationship("Order", back_populates="user")
 
