@@ -1,21 +1,22 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
 
 # Модель Pydantic для пользователей
 class UserBase(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: str = Field(..., min_length=2, max_length=50)
+    last_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=5, max_length=100)
 
 
 class UserOut(UserBase):
-    id: int
+    id: int = Field(..., gt=0)
+    password: str = Field(..., min_length=5, max_length=100)
 
     class Config:
         from_attributes = True
@@ -23,7 +24,7 @@ class UserOut(UserBase):
 
 # Модель Pydantic для товаров
 class ProductBase(BaseModel):
-    name: str
+    name: str = Field(..., max_length=100)
     description: Optional[str] = None
     price: float
 
@@ -33,7 +34,7 @@ class ProductCreate(ProductBase):
 
 
 class ProductOut(ProductBase):
-    id: int
+    id: int = Field(..., gt=0)
 
     class Config:
         from_attributes = True
@@ -41,18 +42,18 @@ class ProductOut(ProductBase):
 
 # Модель Pydantic для заказов
 class OrderBase(BaseModel):
-    user_id: int
-    product_id: int
+    user_id: int = Field(..., gt=0)
+    product_id: int = Field(..., gt=0)
     order_date: datetime
     status: str
 
 
-class OrderCreate(OrderBase):
+class CreateOrder(OrderBase):
     pass
 
 
-class OrderOut(OrderBase):
-    id: int
+class OrdersOut(OrderBase):
+    id: int = Field(..., gt=0)
 
     class Config:
         from_attributes = True
