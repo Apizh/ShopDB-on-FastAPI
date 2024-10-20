@@ -48,6 +48,7 @@ class OrderBase(BaseModel):
     status: str
 
 
+# Модель для создания заказа
 class CreateOrder(OrderBase):
     pass
 
@@ -57,3 +58,20 @@ class OrdersOut(OrderBase):
 
     class Config:
         from_attributes = True
+
+
+class UpdateOrder(BaseModel):
+    user_id: int = Field(..., gt=0)
+    password: str = Field(..., min_length=5, max_length=100)
+    order_id: int = Field(..., gt=0)
+    new_date: datetime
+
+
+class OrderResponse(BaseModel):
+    id: int
+    user_id: int
+    order_date: datetime
+    status: str
+
+    class Config:
+        orm_mode = True
