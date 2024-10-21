@@ -13,7 +13,7 @@ class User(Base):
     first_name = Column(String(length=50), nullable=False)
     last_name = Column(String(length=100), nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String(length=50), nullable=False)
+    password = Column(String(length=100), nullable=False)
 
     orders = relationship("Order", back_populates="user")
 
@@ -38,7 +38,7 @@ class Order(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
     order_date = Column(DateTime, nullable=False)
-    status = Column(String, nullable=False)
+    status = Column(String(length=100), nullable=False)
 
     user = relationship("User", back_populates="orders")
     product = relationship("Product", back_populates="orders")

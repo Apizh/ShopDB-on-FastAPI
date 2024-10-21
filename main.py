@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException
+from numpy.ma.core import product
 from sqlalchemy.orm import Session, selectinload
 import models, schemas
 from database import SessionLocal, engine, init_db
@@ -121,4 +122,5 @@ async def update_item(user_id: int, password: str, order_id: int, new_date: date
         id=db_order.id,
         user_id=db_order.user_id,
         order_date=db_order.order_date,
+        product_id=db_order.product_id,
         status=db_order.status)
