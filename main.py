@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException
-from numpy.ma.core import product
 from sqlalchemy.orm import Session, selectinload
 import models, schemas
 from database import SessionLocal, engine, init_db
@@ -36,7 +35,7 @@ def get_db():
 
 
 # Добавление пользователя в БД.
-@app.post("/users", response_model=schemas.UserOut)
+@app.post("/users/", response_model=schemas.UserOut)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = models.User(email=user.email,
                           first_name=user.first_name,
@@ -58,7 +57,7 @@ async def create_product(product: schemas.ProductCreate, db: Session = Depends(g
     return db_product
 
 
-# Получение данных о товарах из БД по id.
+# Получение данных о товарах из БД по названию товара.
 @app.get("/products/{name}", response_model=list[schemas.ProductOut])
 async def get_products(name: str, db: Session = Depends(get_db)):
     db_product = db.query(models.Product).filter(models.Product.name == name).all()
@@ -77,6 +76,7 @@ async def order_create(order: schemas.CreateOrder, db: Session = Depends(get_db)
     return db_order
 
 
+# Получение всех заказов, которые есть в БД у пользователя по id
 @app.get("/orders_get/{id}/{password}", response_model=list[schemas.OrdersOut])
 async def get_orders_user(id: int, password: str, db: Session = Depends(get_db)):
     # Находим пользователя по id
@@ -96,6 +96,7 @@ async def get_orders_user(id: int, password: str, db: Session = Depends(get_db))
     return db_orders
 
 
+# Меняем дату заказа в БД.
 @app.put("/order_put/{user_id}/{password}/{order_id}/{new_date}/", response_model=schemas.OrderResponse)
 async def update_item(user_id: int, password: str, order_id: int, new_date: datetime, db: Session = Depends(get_db)):
     # Находим пользователя по id
@@ -118,6 +119,36 @@ async def update_item(user_id: int, password: str, order_id: int, new_date: date
     db.refresh(db_order)
 
     # Возвращаем обновленный заказ
+    return schemas.OrderResponse(
+        id=db_order.id,
+        user_id=db_order.user_id,
+        order_date=db_order.order_date,
+        product_id=db_order.product_id,
+        status=db_order.status)
+
+
+# Удаляем заказ из БД
+@app.delete("/order/{user_id}/{password}/{order_id}/", response_model=schemas.OrderResponse)
+async def delete_order(user_id: int, password: str, order_id: int, db: Session = Depends(get_db)):
+    # Находим пользователя по id
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем пароль
+    if not verify_password(password, db_user.password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    # Находим заказ
+    db_order = db.query(models.Order).filter((models.Order.user_id == user_id) & (models.Order.id == order_id)).first()
+    if not db_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Удаляем заказ
+    db.delete(db_order)
+    db.commit()
+
+    # Возвращаем удаленный заказ, информацию о нем.
     return schemas.OrderResponse(
         id=db_order.id,
         user_id=db_order.user_id,
