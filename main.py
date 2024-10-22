@@ -1,9 +1,8 @@
 from datetime import datetime
-
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 import models, schemas
-from database import SessionLocal, engine, init_db
+from database import SessionLocal, init_db
 from passlib.context import CryptContext  # Для работы с хэшированием паролей
 
 app = FastAPI()
@@ -16,13 +15,8 @@ init_db()
 
 
 # Функция для хэширования пароля
-def hash_password(password: str):
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
-
-
-# Функция для проверки пароля
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 # Dependency для получения сессии базы данных
@@ -34,20 +28,61 @@ def get_db():
         db.close()
 
 
-# Добавление пользователя в БД.
+# Вспомогательная функция для аутентификации пользователя, получения всех заказов или конкретного заказа
+def authenticate_user_and_get_orders(user_id: int, password: str, db: Session, order_id: int = None):
+    # Находим пользователя по id
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем пароль
+    if not pwd_context.verify(password, db_user.password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    # Если передан `order_id`, возвращаем конкретный заказ, иначе — все заказы
+    if order_id:
+        db_order = db.query(models.Order).filter(
+            (models.Order.user_id == user_id) & (models.Order.id == order_id)
+        ).first()
+        if not db_order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return db_order
+    else:
+        db_orders = db.query(models.Order).filter(models.Order.user_id == user_id).all()
+        if not db_orders:
+            raise HTTPException(status_code=404, detail="Orders not found")
+        return db_orders
+
+
+# Добавление пользователя в БД
 @app.post("/users/", response_model=schemas.UserOut)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = models.User(email=user.email,
-                          first_name=user.first_name,
-                          last_name=user.last_name,
-                          password=hash_password(user.password))
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    # Проверяем, существует ли пользователь с таким email
+    existing_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
+    # Создаем нового пользователя
+    db_user = models.User(
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        password=hash_password(user.password)
+    )
+
+    # Обработка возможных ошибок при добавлении пользователя в БД
+    try:
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="An error occurred while creating the user") from e
+
     return db_user
 
 
-# Добавление товара в БД.
+# Добавление товара в БД
 @app.post("/product/", response_model=schemas.ProductOut)
 async def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     db_product = models.Product(**product.dict())
@@ -57,11 +92,11 @@ async def create_product(product: schemas.ProductCreate, db: Session = Depends(g
     return db_product
 
 
-# Получение данных о товарах из БД по названию товара.
+# Получение данных о товарах из БД по названию товара
 @app.get("/products/{name}", response_model=list[schemas.ProductOut])
 async def get_products(name: str, db: Session = Depends(get_db)):
     db_product = db.query(models.Product).filter(models.Product.name == name).all()
-    if db_product is None:
+    if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     return db_product
 
@@ -76,82 +111,45 @@ async def order_create(order: schemas.CreateOrder, db: Session = Depends(get_db)
     return db_order
 
 
-# Получение всех заказов, которые есть в БД у пользователя по id
+# Получение всех заказов пользователя по id
 @app.get("/orders_get/{id}/{password}", response_model=list[schemas.OrdersOut])
 async def get_orders_user(id: int, password: str, db: Session = Depends(get_db)):
-    # Находим пользователя по id
-    db_user = db.query(models.User).filter(models.User.id == id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Проверяем пароль
-    if not verify_password(password, db_user.password):
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
-    # Если пароль правильный, находим все заказы этого пользователя
-    db_orders = db.query(models.Order).filter(models.Order.user_id == id).all()
-    if not db_orders:
-        raise HTTPException(status_code=404, detail="Orders not found")
-
+    db_orders = authenticate_user_and_get_orders(id, password, db)
     return db_orders
 
 
-# Меняем дату заказа в БД.
+# Меняем дату заказа в БД
 @app.put("/order_put/{user_id}/{password}/{order_id}/{new_date}/", response_model=schemas.OrderResponse)
 async def update_item(user_id: int, password: str, order_id: int, new_date: datetime, db: Session = Depends(get_db)):
-    # Находим пользователя по id
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Проверяем пароль
-    if not verify_password(password, db_user.password):
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
-    # Находим заказ
-    db_order = db.query(models.Order).filter((models.Order.user_id == user_id) & (models.Order.id == order_id)).first()
-    if not db_order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    db_order = authenticate_user_and_get_orders(user_id, password, db, order_id=order_id)
 
     # Обновляем дату заказа
     db_order.order_date = new_date
     db.commit()
     db.refresh(db_order)
 
-    # Возвращаем обновленный заказ
     return schemas.OrderResponse(
         id=db_order.id,
         user_id=db_order.user_id,
         order_date=db_order.order_date,
         product_id=db_order.product_id,
-        status=db_order.status)
+        status=db_order.status
+    )
 
 
 # Удаляем заказ из БД
 @app.delete("/order/{user_id}/{password}/{order_id}/", response_model=schemas.OrderResponse)
 async def delete_order(user_id: int, password: str, order_id: int, db: Session = Depends(get_db)):
-    # Находим пользователя по id
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Проверяем пароль
-    if not verify_password(password, db_user.password):
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
-    # Находим заказ
-    db_order = db.query(models.Order).filter((models.Order.user_id == user_id) & (models.Order.id == order_id)).first()
-    if not db_order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    db_order = authenticate_user_and_get_orders(user_id, password, db, order_id=order_id)
 
     # Удаляем заказ
     db.delete(db_order)
     db.commit()
 
-    # Возвращаем удаленный заказ, информацию о нем.
     return schemas.OrderResponse(
         id=db_order.id,
         user_id=db_order.user_id,
         order_date=db_order.order_date,
         product_id=db_order.product_id,
-        status=db_order.status)
+        status=db_order.status
+    )
